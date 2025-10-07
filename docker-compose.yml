@@ -1,0 +1,96 @@
+services:
+  postgres:
+    container_name: postgres
+    image: postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: 123456
+      PGDATA: /data/postgres
+    volumes:
+      - postgres:/data/postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - postgres
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready", "-d", "db_prod" ]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    networks:
+      - postgres
+    restart: unless-stopped
+  aioi-dashboard-be:
+    container_name: aioi-dashboard-backend
+    image: 179845205748.dkr.ecr.ap-southeast-1.amazonaws.com/demo-ecr:build-20241123012302
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    restart: unless-stopped
+    environment:
+      PROFILE_ACTIVE: local
+      REDIS_HOST: aioi-dashboard-redis
+      REDIS_PORT: 6379
+      DATA_SOURCE_URL: jdbc:postgresql://103.82.27.190:5432/dashboard
+      DATA_SOURCE_USERNAME: admin
+      DATA_SOURCE_PASSWORD: 123456
+    depends_on:
+      redis:
+        condition: service_healthy
+  redis:
+    container_name: aioi-dashboard-redis
+    image: bitnami/redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli", "ping | grep pong || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    environment:
+      ALLOW_EMPTY_PASSWORD: "true"
+  prometheus:
+      image: prom/prometheus
+      container_name: prometheus
+      restart: unless-stopped
+      ports:
+          - "9090:9090"
+      volumes:
+        - ./prometheus/config:/etc/prometheus/
+      command:
+        - '--config.file=/etc/prometheus/prometheus.yaml'
+  grafana:
+    image: grafana/grafana-oss
+    user: '0'
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SERVER_DOMAIN=localhost
+
+networks:
+  postgres:
+    driver: bridge
+
+volumes:
+  postgres:
+  pgadmin:
+

@@ -1,0 +1,35 @@
+version: 0.2
+
+
+phases:
+  install:
+    runtime-versions:
+      java: corretto17
+  pre_build:
+    commands:
+      - java -version
+      - mvn clean install -DskipTests
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      - aws ecr get-login-password --region ap-southeast-1 | docker login --username AWS --password-stdin 179845205748.dkr.ecr.ap-southeast-1.amazonaws.com
+      - REPOSITORY_URI=179845205748.dkr.ecr.ap-southeast-1.amazonaws.com/demo-ecr
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=build-$(date +%Y%m%d%H%M%S)
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - docker build -t $REPOSITORY_URI:$IMAGE_TAG .
+      - docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:$IMAGE_TAG
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - echo Writing image definitions file...
+      - printf '[{"name":"aioi_data_backend","imageUri":"%s"}]' $REPOSITORY_URI:$IMAGE_TAG > aioi_data_backend.json
+      - cat aioi_data_backend.json
+artifacts:
+  files:
+    - aioi_data_backend.json
+    - target/aioi_data_backend-0.0.1-SNAPSHOT.jar
