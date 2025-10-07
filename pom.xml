@@ -21,6 +21,7 @@
         <mapstruct.version>1.5.2.Final</mapstruct.version>
         <bucket4j-core.version>7.6.0</bucket4j-core.version>
         <logstash.version>7.4</logstash.version>
+        <datasource-micrometer.version>1.0.2</datasource-micrometer.version>
         <start-class>com.demo.base.Application</start-class>
     </properties>
     <dependencies>
